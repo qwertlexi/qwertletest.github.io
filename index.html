@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="qwertlexi — signal from the noise" />
+  <title>qwertlexi · sys</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Syne:wght@700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Boot overlay -->
+  <div id="boot-overlay" aria-hidden="true">
+    <div class="boot-inner">
+      <div class="boot-logo">QWERTLEXI_SYS</div>
+      <div class="boot-lines" id="boot-lines"></div>
+      <div class="boot-bar-wrap"><div class="boot-bar" id="boot-bar"></div></div>
+      <div class="boot-status" id="boot-status">INITIALIZING…</div>
+    </div>
+  </div>
+
+  <!-- Rain canvas -->
+  <canvas id="rain" aria-hidden="true"></canvas>
+
+  <!-- Mouse ripple layer -->
+  <div id="ripple-layer" aria-hidden="true"></div>
+
+  <!-- ── Custom cursor ── -->
+  <div id="cursor" aria-hidden="true">
+    <div class="cursor-ring"></div>
+    <div class="cursor-dot"></div>
+    <div class="cursor-h"></div>
+    <div class="cursor-v"></div>
+  </div>
+
+  <!-- ── Glitch overlay (triggered on name click) ── -->
+  <div id="glitch-overlay" aria-hidden="true"></div>
+
+  <!-- ── Identity ── -->
+  <div class="ident" id="ident">
+    <h1 class="ident-name">
+      <span id="mark-text" aria-label="qwertlexi"></span>
+    </h1>
+    <div class="ident-rule" aria-hidden="true"></div>
+    <p class="ident-meta" aria-hidden="true">
+      <span id="ident-clock">--:--:--</span>
+      <span class="sep">·</span>
+      <span id="ident-date">----·--·--</span>
+    </p>
+    <!-- Rotating status phrase below name -->
+    <p class="ident-phrase" id="ident-phrase" aria-hidden="true"></p>
+  </div>
+
+  <!-- ── HUD corners ── -->
+  <div class="hud hud-tl" aria-hidden="true">
+    <span class="hud-dot"></span>
+    <span class="hud-txt">SYS · ONLINE</span>
+  </div>
+  <div class="hud hud-tr" aria-hidden="true">
+    <span class="hud-txt" id="hud-tick">TICK · 0</span>
+    <canvas id="wavegraph" width="56" height="16" aria-hidden="true"></canvas>
+  </div>
+  <div class="hud hud-bl" aria-hidden="true">
+    <span class="hud-txt" id="hud-fps">FPS · —</span>
+    <span class="sep">·</span>
+    <span class="hud-txt" id="hud-cols">COLS · —</span>
+  </div>
+  <div class="hud hud-br" aria-hidden="true">
+    <span class="hud-txt">© <span id="hud-year"></span> · LOCAL</span>
+  </div>
+
+  <!-- ── Control strip (right side) ── -->
+  <nav class="ctrl" aria-label="controls">
+    <button class="ctrl-btn" id="ctrl-theme"  title="主题 [T]"    aria-label="切换主题">◑</button>
+    <button class="ctrl-btn" id="ctrl-rain"   title="矩阵雨 [R]"  aria-label="矩阵雨开关">⌇</button>
+    <button class="ctrl-btn" id="ctrl-speed"  title="雨速 [S]"    aria-label="切换雨速">⚡</button>
+    <button class="ctrl-btn" id="ctrl-ripple" title="涟漪 [W]"    aria-label="涟漪特效">◎</button>
+    <button class="ctrl-btn" id="ctrl-fs"     title="全屏 [F]"    aria-label="全屏">⛶</button>
+    <button class="ctrl-btn mob-term-btn" id="ctrl-terminal" title="终端 [K]" aria-label="打开终端"><svg width="13" height="10" viewBox="0 0 13 10" fill="currentColor"><polygon points="0,0 5,5 0,10"/><rect x="6" y="8" width="7" height="2"/></svg></button>
+  </nav>
+
+  <!-- ── Command terminal (centre-bottom, shows on Cmd/Ctrl+K) ── -->
+  <div class="terminal" id="terminal" aria-label="终端输入" aria-hidden="true">
+    <div class="terminal-header">
+      <span class="terminal-prompt">// TERMINAL · press ESC to close</span>
+      <button class="terminal-close" id="terminal-close" aria-label="关闭">×</button>
+    </div>
+    <div class="terminal-output" id="terminal-output"></div>
+    <div class="terminal-input-row">
+      <span class="terminal-caret" aria-hidden="true">›</span>
+      <input class="terminal-input" id="terminal-input" type="text"
+        maxlength="200" placeholder="type a message, 'help', or a command…"
+        autocomplete="off" spellcheck="false" aria-label="命令输入" />
+    </div>
+  </div>
+  <div class="terminal-backdrop" id="terminal-backdrop" aria-hidden="true"></div>
+
+  <!-- ── Time Capsule overlay ── -->
+  <div class="capsule-overlay" id="capsule-overlay" hidden aria-modal="true" role="dialog" aria-label="时间胶囊">
+    <div class="capsule-box">
+      <header class="capsule-hdr">
+        <span class="capsule-title">// TIME CAPSULE</span>
+        <button class="capsule-close" id="capsule-close" aria-label="关闭">×</button>
+      </header>
+      <p class="capsule-lead">写下一句话，封存到你的浏览器。下次打开时它会出现。</p>
+      <textarea class="capsule-input" id="capsule-input" maxlength="280" rows="3"
+        placeholder="留给未来的自己…"></textarea>
+      <div class="capsule-actions">
+        <button class="capsule-btn capsule-btn--primary" id="capsule-save">封存</button>
+        <button class="capsule-btn" id="capsule-clear">清除记录</button>
+      </div>
+      <div class="capsule-list" id="capsule-list"></div>
+    </div>
+  </div>
+
+  <!-- ── Music player ── -->
+  <div class="player" id="player">
+    <div class="player-bar" id="player-bar">
+      <!-- EQ viz -->
+      <div class="player-viz" id="player-viz" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <!-- Track info -->
+      <div class="player-info">
+        <span class="player-title" id="player-title">—</span>
+        <span class="player-artist" id="player-artist">—</span>
+      </div>
+      <!-- Controls -->
+      <div class="player-ctrl">
+        <button class="player-btn sm" id="player-prev" aria-label="上一曲"><svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><rect x="0" y="0" width="2" height="11"/><polygon points="10,0 2.5,5.5 10,11"/></svg></button>
+        <button class="player-btn play" id="player-play" aria-label="播放/暂停"><svg class="play-icon" width="12" height="13" viewBox="0 0 12 13" fill="currentColor"><polygon points="1,0 12,6.5 1,13"/></svg><svg class="pause-icon" width="11" height="13" viewBox="0 0 11 13" fill="currentColor" style="display:none"><rect x="0" y="0" width="4" height="13"/><rect x="7" y="0" width="4" height="13"/></svg></button>
+        <button class="player-btn sm" id="player-next" aria-label="下一曲"><svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><rect x="9" y="0" width="2" height="11"/><polygon points="1,0 8.5,5.5 1,11"/></svg></button>
+      </div>
+      <button class="player-expand" id="player-expand" aria-label="展开" aria-expanded="false">
+        <span class="chevron"></span>
+      </button>
+    </div>
+
+    <div class="player-panel" id="player-panel" aria-hidden="true">
+      <!-- Seek bar -->
+      <div class="player-seek-wrap">
+        <div class="player-seek" id="player-seek">
+          <div class="player-seek-fill" id="player-seek-fill"></div>
+          <div class="player-seek-head" id="player-seek-head"></div>
+        </div>
+        <div class="player-times">
+          <span id="player-cur">0:00</span>
+          <span id="player-tot">0:00</span>
+        </div>
+      </div>
+      <!-- Volume -->
+      <div class="player-vol-row">
+        <span class="player-vol-lbl">VOL</span>
+        <input class="player-vol" type="range" id="player-vol"
+          min="0" max="1" step="0.02" value="0.8" aria-label="音量" />
+        <span class="player-vol-val" id="player-vol-val">80%</span>
+      </div>
+      <!-- Tracklist -->
+      <div class="player-tracklist" id="player-tracklist"></div>
+    </div>
+  </div>
+
+  <!-- Shortcut hint (fades in once) -->
+  <div class="shortcut-hint" id="shortcut-hint" aria-hidden="true">
+    press <kbd>K</kbd> for terminal · <kbd>C</kbd> capsule · <kbd>P</kbd> projects · <kbd>T</kbd> theme · <kbd>R</kbd> rain
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
